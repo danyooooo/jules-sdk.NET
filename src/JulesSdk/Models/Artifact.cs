@@ -63,10 +63,10 @@ public class MediaArtifact : Artifact
     public required string Data { get; init; }
     
     /// <summary>
-    /// The format of the media (e.g., "image/png").
+    /// The format of the media (MIME type, e.g., "image/png").
     /// </summary>
-    [JsonPropertyName("format")]
-    public required string Format { get; init; }
+    [JsonPropertyName("mimeType")]
+    public required string MimeType { get; init; }
     
     /// <summary>
     /// Saves the media artifact to a file.
@@ -80,7 +80,7 @@ public class MediaArtifact : Artifact
     /// <summary>
     /// Converts the media artifact to a data URL.
     /// </summary>
-    public string ToDataUrl() => $"data:{Format};base64,{Data}";
+    public string ToDataUrl() => $"data:{MimeType};base64,{Data}";
 }
 
 /// <summary>
@@ -98,16 +98,10 @@ public class BashArtifact : Artifact
     public required string Command { get; init; }
     
     /// <summary>
-    /// The standard output.
+    /// The combined output (stdout and stderr).
     /// </summary>
-    [JsonPropertyName("stdout")]
-    public string? Stdout { get; init; }
-    
-    /// <summary>
-    /// The standard error.
-    /// </summary>
-    [JsonPropertyName("stderr")]
-    public string? Stderr { get; init; }
+    [JsonPropertyName("output")]
+    public string? Output { get; init; }
     
     /// <summary>
     /// The exit code of the command.
@@ -120,8 +114,7 @@ public class BashArtifact : Artifact
     /// </summary>
     public override string ToString()
     {
-        var output = string.Join("", new[] { Stdout, Stderr }.Where(s => !string.IsNullOrEmpty(s)));
-        var outputLine = !string.IsNullOrEmpty(output) ? $"{output}\n" : "";
+        var outputLine = !string.IsNullOrEmpty(Output) ? $"{Output}\n" : "";
         return $"$ {Command}\n{outputLine}[exit code: {ExitCode?.ToString() ?? "N/A"}]";
     }
 }

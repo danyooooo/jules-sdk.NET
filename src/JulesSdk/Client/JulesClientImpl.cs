@@ -15,19 +15,22 @@ using JulesSdk.Storage;
 /// <summary>
 /// Implementation of the main JulesClient interface.
 /// </summary>
-internal class JulesClientImpl : IJulesClient
+internal class JulesClientImpl : IJulesClient, IDisposable
 {
     private readonly ApiClient _apiClient;
     private readonly JulesOptions _options;
     private readonly HttpClient _httpClient;
+    private readonly bool _ownsHttpClient;
+    private bool _disposed;
     
     public ISourceManager Sources { get; }
     public ISessionStorage Storage { get; }
     
-    public JulesClientImpl(HttpClient httpClient, JulesOptions options)
+    public JulesClientImpl(HttpClient httpClient, JulesOptions options, bool ownsHttpClient = false)
     {
         _httpClient = httpClient;
         _options = options;
+        _ownsHttpClient = ownsHttpClient;
         _apiClient = new ApiClient(httpClient, options);
         Sources = new SourceManager(_apiClient);
         
@@ -249,4 +252,28 @@ internal class JulesClientImpl : IJulesClient
     private record ListSessionsResponse(
         IReadOnlyList<SessionResource>? Sessions,
         string? NextPageToken);
+    
+    /// <summary>
+    /// Disposes resources used by the client.
+    /// </summary>
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+    
+    /// <summary>
+    /// Disposes resources used by the client.
+    /// </summary>
+    protected virtual void Dispose(bool disposing)
+    {
+        if (_disposed) return;
+        
+        if (disposing && _ownsHttpClient)
+        {
+            _httpClient.Dispose();
+        }
+        
+        _disposed = true;
+    }
 }

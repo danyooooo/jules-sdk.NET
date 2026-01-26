@@ -32,19 +32,44 @@ internal class SessionClientImpl : ISessionClient
         string? pageToken = null;
         var lastSeenTime = "";
         var seenIdsAtLastTime = new HashSet<string>();
+        var consecutiveErrors = 0;
+        const int maxConsecutiveErrors = 5;
         
         while (!cancellationToken.IsCancellationRequested)
         {
-            var query = new Dictionary<string, string> { ["pageSize"] = "50" };
-            if (!string.IsNullOrEmpty(pageToken))
-                query["pageToken"] = pageToken;
-                
-            var response = await _apiClient.RequestAsync<ListActivitiesResponse>(
-                $"sessions/{Id}/activities",
-                new ApiRequestOptions { Query = query },
-                cancellationToken);
-                
-            foreach (var activity in response.Activities ?? [])
+            ListActivitiesResponse? response = null;
+            
+            try
+            {
+                var query = new Dictionary<string, string> { ["pageSize"] = "50" };
+                if (!string.IsNullOrEmpty(pageToken))
+                    query["pageToken"] = pageToken;
+                    
+                response = await _apiClient.RequestAsync<ListActivitiesResponse>(
+                    $"sessions/{Id}/activities",
+                    new ApiRequestOptions { Query = query },
+                    cancellationToken);
+                    
+                consecutiveErrors = 0; // Reset on success
+            }
+            catch (JulesNetworkException) when (consecutiveErrors < maxConsecutiveErrors)
+            {
+                // Retry transient network errors with backoff
+                consecutiveErrors++;
+                var delay = Math.Min(_pollingIntervalMs * Math.Pow(2, consecutiveErrors - 1), 30000);
+                await Task.Delay((int)delay, cancellationToken);
+                continue;
+            }
+            catch (JulesRateLimitException) when (consecutiveErrors < maxConsecutiveErrors)
+            {
+                // Retry rate limit errors with longer backoff
+                consecutiveErrors++;
+                var delay = Math.Min(5000 * Math.Pow(2, consecutiveErrors - 1), 60000);
+                await Task.Delay((int)delay, cancellationToken);
+                continue;
+            }
+            
+            foreach (var activity in response?.Activities ?? [])
             {
                 // Deduplication logic
                 if (string.Compare(activity.CreateTime, lastSeenTime) < 0)
@@ -70,7 +95,7 @@ internal class SessionClientImpl : ISessionClient
                 yield return activity;
             }
             
-            if (!string.IsNullOrEmpty(response.NextPageToken))
+            if (!string.IsNullOrEmpty(response?.NextPageToken))
             {
                 pageToken = response.NextPageToken;
             }

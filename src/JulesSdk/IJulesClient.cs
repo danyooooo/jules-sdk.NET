@@ -230,7 +230,7 @@ public interface ISourceManager
 /// <summary>
 /// The main client interface for interacting with the Jules API.
 /// </summary>
-public interface IJulesClient
+public interface IJulesClient : IDisposable
 {
     /// <summary>
     /// Executes a task in automated mode.

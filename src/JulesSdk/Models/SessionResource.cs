@@ -47,6 +47,18 @@ public class SessionResource
     public string? Title { get; init; }
     
     /// <summary>
+    /// Whether plan approval is required before execution.
+    /// </summary>
+    [JsonPropertyName("requirePlanApproval")]
+    public bool? RequirePlanApproval { get; init; }
+    
+    /// <summary>
+    /// The automation mode of the session (e.g., "AUTO_CREATE_PR").
+    /// </summary>
+    [JsonPropertyName("automationMode")]
+    public string? AutomationMode { get; init; }
+    
+    /// <summary>
     /// The time the session was created (RFC 3339 timestamp).
     /// </summary>
     [JsonPropertyName("createTime")]

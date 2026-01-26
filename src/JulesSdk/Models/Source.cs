@@ -6,13 +6,32 @@ using System.Text.Json.Serialization;
 namespace JulesSdk.Models;
 
 /// <summary>
+/// A GitHub branch.
+/// </summary>
+public record GitHubBranch(
+    [property: JsonPropertyName("displayName")] string DisplayName
+);
+
+/// <summary>
 /// Details of a GitHub repository connected to Jules.
 /// </summary>
-public record GitHubRepo(
-    [property: JsonPropertyName("owner")] string Owner,
-    [property: JsonPropertyName("repo")] string Repo,
-    [property: JsonPropertyName("isPrivate")] bool IsPrivate
-);
+public class GitHubRepo
+{
+    [JsonPropertyName("owner")]
+    public required string Owner { get; init; }
+    
+    [JsonPropertyName("repo")]
+    public required string Repo { get; init; }
+    
+    [JsonPropertyName("isPrivate")]
+    public bool IsPrivate { get; init; }
+    
+    [JsonPropertyName("defaultBranch")]
+    public GitHubBranch? DefaultBranch { get; init; }
+    
+    [JsonPropertyName("branches")]
+    public IReadOnlyList<GitHubBranch>? Branches { get; init; }
+}
 
 /// <summary>
 /// An input source of data for a session (e.g., a GitHub repository).
@@ -32,14 +51,9 @@ public class Source
     public required string Id { get; init; }
     
     /// <summary>
-    /// The type of source (currently only "githubRepo").
-    /// </summary>
-    [JsonPropertyName("type")]
-    public string Type { get; init; } = "githubRepo";
-    
-    /// <summary>
     /// GitHub repository details.
     /// </summary>
     [JsonPropertyName("githubRepo")]
     public GitHubRepo? GitHubRepo { get; init; }
 }
+

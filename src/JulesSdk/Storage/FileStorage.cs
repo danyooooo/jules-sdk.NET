@@ -94,7 +94,14 @@ public class FileStorage : ISessionStorage
                 if (activity != null)
                     activities.Add(activity);
             }
-            catch { /* Ignore malformed */ }
+            catch (JsonException)
+            {
+                // Skip malformed JSON files - file may be corrupted or from incompatible version
+            }
+            catch (IOException)
+            {
+                // Skip files with IO errors - may be locked or inaccessible
+            }
         }
         
         // Sort by creation time

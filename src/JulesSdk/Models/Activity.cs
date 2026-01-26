@@ -50,6 +50,12 @@ public abstract class Activity
     public Origin Originator { get; init; }
     
     /// <summary>
+    /// A description of this activity.
+    /// </summary>
+    [JsonPropertyName("description")]
+    public string? Description { get; init; }
+    
+    /// <summary>
     /// The artifacts produced by this activity.
     /// </summary>
     [JsonPropertyName("artifacts")]
@@ -129,12 +135,6 @@ public class ProgressUpdatedActivity : Activity
     /// </summary>
     [JsonPropertyName("title")]
     public required string Title { get; init; }
-    
-    /// <summary>
-    /// The description of the progress update.
-    /// </summary>
-    [JsonPropertyName("description")]
-    public string? Description { get; init; }
 }
 
 /// <summary>
