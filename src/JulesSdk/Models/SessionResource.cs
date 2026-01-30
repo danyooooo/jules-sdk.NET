@@ -14,19 +14,19 @@ public class SessionResource
     /// The full resource name (e.g., "sessions/314159...").
     /// </summary>
     [JsonPropertyName("name")]
-    public required string Name { get; init; }
+    public string? Name { get; init; }
     
     /// <summary>
     /// The unique ID of the session.
     /// </summary>
     [JsonPropertyName("id")]
-    public string Id => Name.Replace("sessions/", "");
+    public string Id => Name?.Replace("sessions/", "") ?? "";
     
     /// <summary>
     /// The initial prompt for the session.
     /// </summary>
     [JsonPropertyName("prompt")]
-    public required string Prompt { get; init; }
+    public string? Prompt { get; init; }
     
     /// <summary>
     /// The source context for the session.
@@ -62,13 +62,13 @@ public class SessionResource
     /// The time the session was created (RFC 3339 timestamp).
     /// </summary>
     [JsonPropertyName("createTime")]
-    public required string CreateTime { get; init; }
+    public string? CreateTime { get; init; }
     
     /// <summary>
     /// The time the session was last updated (RFC 3339 timestamp).
     /// </summary>
     [JsonPropertyName("updateTime")]
-    public required string UpdateTime { get; init; }
+    public string? UpdateTime { get; init; }
     
     /// <summary>
     /// The current state of the session.

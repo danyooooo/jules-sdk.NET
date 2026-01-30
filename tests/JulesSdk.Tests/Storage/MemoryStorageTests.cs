@@ -19,11 +19,11 @@ public class MemoryStorageTests
         UpdateTime = "2026-01-01T00:00:00Z"
     };
 
-    private static AgentMessagedActivity CreateTestActivity(string name = "sessions/123/activities/1") => new()
+    private static Activity CreateTestActivity(string name = "sessions/123/activities/1") => new()
     {
         Name = name,
         CreateTime = "2026-01-01T00:00:00Z",
-        Message = "Test message"
+        AgentMessaged = new AgentMessagedData { AgentMessage = "Test message" }
     };
 
     [Fact]
@@ -58,11 +58,11 @@ public class MemoryStorageTests
     {
         const string sessionId = "sessions/123";
         var activity1 = CreateTestActivity("sessions/123/activities/1");
-        var activity2 = new AgentMessagedActivity
+        var activity2 = new Activity
         {
             Name = "sessions/123/activities/2",
             CreateTime = "2026-01-01T00:01:00Z",
-            Message = "Test 2"
+            AgentMessaged = new AgentMessagedData { AgentMessage = "Test 2" }
         };
 
         // Insert

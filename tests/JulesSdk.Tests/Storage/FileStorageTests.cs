@@ -57,11 +57,11 @@ public class FileStorageTests : IDisposable
     public async Task Activity_Persists_To_Disk()
     {
         const string sessionId = "sessions/123";
-        var activity = new AgentMessagedActivity
+        var activity = new Activity
         {
             Name = "sessions/123/activities/abc",
             CreateTime = "2026-01-01T00:00:00Z",
-            Message = "Test message"
+            AgentMessaged = new AgentMessagedData { AgentMessage = "Test message" }
         };
 
         await _storage.UpsertActivityAsync(sessionId, activity);

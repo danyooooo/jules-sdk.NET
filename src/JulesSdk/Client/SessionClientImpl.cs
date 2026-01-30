@@ -44,6 +44,11 @@ internal class SessionClientImpl : ISessionClient
                 var query = new Dictionary<string, string> { ["pageSize"] = "50" };
                 if (!string.IsNullOrEmpty(pageToken))
                     query["pageToken"] = pageToken;
+                
+                // Apply createTime filter for server-side filtering
+                var createTimeFilter = options?.GetCreateTimeFilter();
+                if (!string.IsNullOrEmpty(createTimeFilter))
+                    query["createTime"] = createTimeFilter;
                     
                 response = await _apiClient.RequestAsync<ListActivitiesResponse>(
                     $"sessions/{Id}/activities",
@@ -107,7 +112,9 @@ internal class SessionClientImpl : ISessionClient
         }
     }
     
-    public async IAsyncEnumerable<Activity> HistoryAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
+    public async IAsyncEnumerable<Activity> HistoryAsync(
+        StreamOptions? options = null,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         string? pageToken = null;
         
@@ -116,6 +123,11 @@ internal class SessionClientImpl : ISessionClient
             var query = new Dictionary<string, string> { ["pageSize"] = "100" };
             if (!string.IsNullOrEmpty(pageToken))
                 query["pageToken"] = pageToken;
+            
+            // Apply createTime filter for server-side filtering
+            var createTimeFilter = options?.GetCreateTimeFilter();
+            if (!string.IsNullOrEmpty(createTimeFilter))
+                query["createTime"] = createTimeFilter;
                 
             var response = await _apiClient.RequestAsync<ListActivitiesResponse>(
                 $"sessions/{Id}/activities",
@@ -124,6 +136,10 @@ internal class SessionClientImpl : ISessionClient
                 
             foreach (var activity in response.Activities ?? [])
             {
+                // Apply client-side filters
+                if (options?.ExcludeOriginator != null && activity.Originator == options.ExcludeOriginator)
+                    continue;
+                    
                 yield return activity;
             }
             
@@ -134,10 +150,12 @@ internal class SessionClientImpl : ISessionClient
     
     public async IAsyncEnumerable<Activity> UpdatesAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        // First, get the current time marker
+        // Use server-side createTime filter for efficiency
         var startTime = DateTime.UtcNow;
         
-        await foreach (var activity in StreamAsync(cancellationToken: cancellationToken))
+        await foreach (var activity in StreamAsync(
+            new StreamOptions { Since = startTime },
+            cancellationToken))
         {
             if (DateTime.TryParse(activity.CreateTime, out var activityTime) && activityTime > startTime)
             {
@@ -178,9 +196,19 @@ internal class SessionClientImpl : ISessionClient
         {
             if (DateTime.TryParse(activity.CreateTime, out var activityTime) && activityTime <= startTime)
                 continue;
-                
-            if (activity is AgentMessagedActivity agentActivity)
-                return agentActivity;
+            
+            // Check if this is an agent messaged activity using the union field
+            if (activity.IsAgentMessaged)
+            {
+                // Return as legacy type for backwards compatibility
+                return new AgentMessagedActivity
+                {
+                    Name = activity.Name,
+                    CreateTime = activity.CreateTime,
+                    Originator = activity.Originator,
+                    AgentMessaged = activity.AgentMessaged
+                };
+            }
         }
         
         throw new JulesException("Session ended before the agent replied.");
@@ -243,7 +271,7 @@ internal class SessionClientImpl : ISessionClient
     private static Outcome MapToOutcome(SessionResource session)
     {
         var pullRequest = session.Outputs?
-            .FirstOrDefault(o => o.Type == "pullRequest")?
+            .FirstOrDefault(o => o.PullRequest != null)?
             .PullRequest;
             
         return new Outcome

@@ -4,6 +4,53 @@ Complete reference for all public APIs in the JulesSdk library.
 
 ---
 
+## Getting Started
+
+### Installation (DLL Reference)
+
+1. **Build the library** (or obtain the pre-built DLL):
+   ```powershell
+   dotnet build -c Release src/JulesSdk/JulesSdk.csproj
+   ```
+
+2. **Copy the DLL** to your project folder:
+   - `JulesSdk.dll` (from `src/JulesSdk/bin/Release/net8.0/` or your target framework)
+
+3. **Add reference** in your `.csproj`:
+   ```xml
+   <ItemGroup>
+     <Reference Include="JulesSdk">
+       <HintPath>path\to\JulesSdk.dll</HintPath>
+     </Reference>
+   </ItemGroup>
+   ```
+
+4. **Add required NuGet dependencies** to your project:
+   ```xml
+   <ItemGroup>
+     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.0" />
+   </ItemGroup>
+   ```
+
+### Quick Start
+
+```csharp
+using JulesSdk;
+
+// Using environment variable JULES_API_KEY
+var client = Jules.Client;
+
+// Using explicit API key
+var client = Jules.Connect("your-api-key");
+
+// Run a session
+var session = await client.RunAsync(new SessionConfig { Prompt = "Fix the login bug" });
+var result = await session.ResultAsync();
+Console.WriteLine($"Completed: {result.Title}");
+```
+
+---
+
 ## Table of Contents
 
 - [Static Factory](#static-factory)
@@ -113,13 +160,13 @@ public interface ISessionClient
 {
     string Id { get; }
     
-    // Stream activities in real-time
+    // Stream activities in real-time (with optional createTime filter)
     IAsyncEnumerable<Activity> StreamAsync(StreamOptions? options = null, CancellationToken ct = default);
     
-    // Get past activities from cache
-    IAsyncEnumerable<Activity> HistoryAsync(CancellationToken ct = default);
+    // Get past activities (with optional createTime filter)
+    IAsyncEnumerable<Activity> HistoryAsync(StreamOptions? options = null, CancellationToken ct = default);
     
-    // Get only future activities
+    // Get only future activities (uses server-side createTime filter)
     IAsyncEnumerable<Activity> UpdatesAsync(CancellationToken ct = default);
     
     // Approve pending plan
@@ -142,6 +189,38 @@ public interface ISessionClient
     
     // Get a specific activity by ID
     Task<Activity> GetActivityAsync(string activityId, CancellationToken ct = default);
+}
+```
+
+#### StreamOptions
+
+```csharp
+public class StreamOptions
+{
+    Origin? ExcludeOriginator { get; }      // Filter by originator
+    DateTime? Since { get; }                 // Only activities after this time
+    string? SinceTimestamp { get; }          // RFC 3339 timestamp (takes precedence)
+}
+```
+
+**Usage with createTime filter:**
+
+```csharp
+// Get only activities from the last hour (server-side filtering)
+var oneHourAgo = DateTime.UtcNow.AddHours(-1);
+
+await foreach (var activity in session.HistoryAsync(new StreamOptions { Since = oneHourAgo }))
+{
+    Console.WriteLine($"{activity.CreateTime}: {activity.Type}");
+}
+
+// Or use an RFC 3339 timestamp directly
+await foreach (var activity in session.StreamAsync(new StreamOptions 
+{ 
+    SinceTimestamp = "2026-01-17T00:03:53.137240Z" 
+}))
+{
+    // Only activities created at or after this timestamp
 }
 ```
 
@@ -203,7 +282,6 @@ public class JulesOptions
 ```
 
 > **Note:** The API base URL is hardcoded to `https://jules.googleapis.com/v1alpha` and cannot be configured.
-```
 
 ### ListSessionsOptions
 
@@ -330,13 +408,14 @@ Final result of a completed session.
 ```csharp
 public class Outcome
 {
-    string SessionId { get; }
-    string Title { get; }
+    string? SessionId { get; }
+    string? Title { get; }
     SessionState State { get; }
     PullRequest? PullRequest { get; }
-    IReadOnlyList<SessionOutput> Outputs { get; }
+    IReadOnlyList<SessionOutput>? Outputs { get; }
+    IReadOnlyList<Activity>? Activities { get; }  // Populated via streaming
     
-    // Get generated files from changeset artifacts
+    // Get generated files from changeset artifacts (requires Activities)
     GeneratedFiles GeneratedFiles();
 }
 ```
@@ -344,12 +423,12 @@ public class Outcome
 ### PullRequest
 
 ```csharp
-public record PullRequest(
-    string Url,
-    string Title,
-    int Number,
-    string State
-);
+public class PullRequest
+{
+    string? Url { get; }
+    string? Title { get; }
+    string? Description { get; }
+}
 ```
 
 ### GeneratedFiles / GeneratedFile
@@ -374,45 +453,74 @@ public enum ChangeType { Added, Modified, Deleted }
 
 ### Activity Types
 
-All activities inherit from the abstract `Activity` base class:
+Activities are union types - only ONE of the activity type fields will be populated per activity.
 
 ```csharp
-public abstract class Activity
+public class Activity
 {
-    string Type { get; }                      // Discriminator
-    string Name { get; }                      // Full resource name
-    string Id { get; }                        // Computed short ID
-    string CreateTime { get; }                // RFC 3339 timestamp
-    Origin Originator { get; }                // AGENT, USER, or SYSTEM
+    // Common fields
+    string? Name { get; }                      // Full resource name
+    string Id { get; }                         // Computed short ID
+    string? CreateTime { get; }                // RFC 3339 timestamp
+    Origin Originator { get; }                 // AGENT, USER, or SYSTEM
+    
+    // Union fields - only ONE will be populated
+    AgentMessagedData? AgentMessaged { get; }
+    UserMessagedData? UserMessaged { get; }
+    PlanGeneratedData? PlanGenerated { get; }
+    PlanApprovedData? PlanApproved { get; }
+    ProgressUpdatedData? ProgressUpdated { get; }
+    SessionCompletedData? SessionCompleted { get; }
+    SessionFailedData? SessionFailed { get; }
     IReadOnlyList<Artifact>? Artifacts { get; }
+    
+    // Helper properties
+    string Type { get; }                       // Computed from which field is set
+    bool IsAgentMessaged { get; }
+    bool IsUserMessaged { get; }
+    bool IsPlanGenerated { get; }
+    bool HasArtifacts { get; }
+    bool IsSessionCompleted { get; }
+    bool IsSessionFailed { get; }
+    string? Message { get; }                   // Agent or user message content
 }
 ```
 
-| Type | Class | Key Properties |
-|------|-------|----------------|
-| `agentMessaged` | `AgentMessagedActivity` | `Message` |
-| `userMessaged` | `UserMessagedActivity` | `Message` |
-| `planGenerated` | `PlanGeneratedActivity` | `Plan` |
-| `planApproved` | `PlanApprovedActivity` | `PlanId` |
-| `progressUpdated` | `ProgressUpdatedActivity` | `Title`, `Description` |
-| `sessionCompleted` | `SessionCompletedActivity` | — |
-| `sessionFailed` | `SessionFailedActivity` | `Reason` |
+#### Data Classes
 
-**Usage with pattern matching:**
+```csharp
+public class AgentMessagedData { string? AgentMessage { get; } }
+public class UserMessagedData { string? UserMessage { get; } }
+public class PlanGeneratedData { Plan? Plan { get; } }
+public class PlanApprovedData { string? PlanId { get; } }
+public class ProgressUpdatedData { string? Title { get; } string? Description { get; } }
+public class SessionCompletedData { string? Summary { get; } }
+public class SessionFailedData { string? Reason { get; } }
+```
+
+**Usage:**
 ```csharp
 await foreach (var activity in session.StreamAsync())
 {
-    switch (activity)
+    if (activity.IsAgentMessaged)
     {
-        case AgentMessagedActivity msg:
-            Console.WriteLine($"Agent: {msg.Message}");
-            break;
-        case PlanGeneratedActivity plan:
-            Console.WriteLine($"Plan with {plan.Plan.Steps.Count} steps");
-            break;
-        case SessionCompletedActivity:
-            Console.WriteLine("Done!");
-            break;
+        Console.WriteLine($"Agent: {activity.Message}");
+    }
+    else if (activity.IsPlanGenerated)
+    {
+        Console.WriteLine($"Plan with {activity.PlanGenerated!.Plan!.Steps!.Count} steps");
+    }
+    else if (activity.HasArtifacts)
+    {
+        foreach (var artifact in activity.Artifacts!)
+        {
+            if (artifact.IsChangeSet)
+                Console.WriteLine($"Code changes: {artifact.ChangeSet!.GitPatch?.UnidiffPatch}");
+        }
+    }
+    else if (activity.IsSessionCompleted)
+    {
+        Console.WriteLine("Done!");
     }
 }
 ```
@@ -421,44 +529,79 @@ await foreach (var activity in session.StreamAsync())
 
 ### Artifact Types
 
-All artifacts inherit from the abstract `Artifact` base class.
-
-#### ChangeSetArtifact
+Artifacts are union types - only one of `ChangeSet`, `Media`, or `BashOutput` will be populated.
 
 ```csharp
-public class ChangeSetArtifact : Artifact
+public class Artifact
 {
-    string Source { get; }                    // Source identifier
-    GitPatch GitPatch { get; }                // Contains UnidiffPatch
+    ChangeSetData? ChangeSet { get; }         // Code changes
+    MediaData? Media { get; }                  // Image/media
+    BashOutputData? BashOutput { get; }        // Command output
     
-    ParsedChangeSet Parse();                  // Parse the diff
+    // Helper properties
+    string Type { get; }                       // "changeSet", "media", "bashOutput", or "unknown"
+    bool IsChangeSet { get; }
+    bool IsMedia { get; }
+    bool IsBashOutput { get; }
 }
 ```
 
-#### MediaArtifact
+#### ChangeSetData
 
 ```csharp
-public class MediaArtifact : Artifact
+public class ChangeSetData
 {
-    string Data { get; }                      // Base64-encoded data
-    string Format { get; }                    // MIME type (e.g., "image/png")
+    string? Source { get; }                    // Source identifier
+    GitPatch? GitPatch { get; }                // Contains UnidiffPatch
     
-    Task SaveAsync(string filepath);          // Save to file
-    string ToDataUrl();                       // Convert to data URL
+    ParsedChangeSet Parse();                   // Parse the diff
 }
 ```
 
-#### BashArtifact
+#### MediaData
 
 ```csharp
-public class BashArtifact : Artifact
+public class MediaData
 {
-    string Command { get; }                   // Executed command
-    string? Stdout { get; }                   // Standard output
-    string? Stderr { get; }                   // Standard error
-    int? ExitCode { get; }                    // Exit code
+    string? Data { get; }                      // Base64-encoded data
+    string? MimeType { get; }                  // MIME type (e.g., "image/png")
     
-    string ToString();                        // Formatted terminal output
+    Task SaveAsync(string filepath);           // Save to file
+    string ToDataUrl();                        // Convert to data URL
+}
+```
+
+#### BashOutputData
+
+```csharp
+public class BashOutputData
+{
+    string? Command { get; }                   // Executed command
+    string? Output { get; }                    // Combined stdout/stderr
+    int? ExitCode { get; }                     // Exit code
+    
+    string ToString();                         // Formatted terminal output
+}
+```
+
+**Usage:**
+
+```csharp
+foreach (var artifact in activity.Artifacts ?? [])
+{
+    if (artifact.IsChangeSet)
+    {
+        var parsed = artifact.ChangeSet!.Parse();
+        Console.WriteLine($"Changed {parsed.Files.Count} files");
+    }
+    else if (artifact.IsMedia)
+    {
+        await artifact.Media!.SaveAsync("screenshot.png");
+    }
+    else if (artifact.IsBashOutput)
+    {
+        Console.WriteLine(artifact.BashOutput!.ToString());
+    }
 }
 ```
 
@@ -469,16 +612,20 @@ public class BashArtifact : Artifact
 #### Plan
 
 ```csharp
-public record Plan(
-    string Id,
-    IReadOnlyList<PlanStep> Steps
-);
+public class Plan
+{
+    string? Id { get; }
+    IReadOnlyList<PlanStep>? Steps { get; }
+    string? CreateTime { get; }
+}
 
-public record PlanStep(
-    string Id,
-    string Title,
-    string? Description
-);
+public class PlanStep
+{
+    string? Id { get; }
+    string? Title { get; }
+    string? Description { get; }
+    int? Index { get; }
+}
 ```
 
 #### Source
@@ -486,10 +633,23 @@ public record PlanStep(
 ```csharp
 public class Source
 {
-    string Name { get; }                      // Resource name
-    string Id { get; }                        // Short ID
-    string? RepositoryResource { get; }       // Repository reference
-    SourceState State { get; }                // CONNECTED, DISCONNECTED, etc.
+    string? Name { get; }                     // Resource name (e.g., "sources/{source}")
+    string? Id { get; }                       // Short ID
+    GitHubRepo? GitHubRepo { get; }           // Repository details
+}
+
+public class GitHubRepo
+{
+    string? Owner { get; }
+    string? Repo { get; }
+    bool? IsPrivate { get; }
+    GitHubBranch? DefaultBranch { get; }
+    IReadOnlyList<GitHubBranch>? Branches { get; }
+}
+
+public class GitHubBranch
+{
+    string? DisplayName { get; }
 }
 ```
 
@@ -558,6 +718,8 @@ All exceptions inherit from `JulesException`.
 ---
 
 ## Dependency Injection
+
+For projects using Microsoft.Extensions.DependencyInjection:
 
 ### ServiceCollectionExtensions
 

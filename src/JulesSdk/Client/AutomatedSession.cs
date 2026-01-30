@@ -90,7 +90,7 @@ internal class AutomatedSession : IAutomatedSession
             if (session.State is SessionState.Completed or SessionState.Failed)
             {
                 var pullRequest = session.Outputs?
-                    .FirstOrDefault(o => o.Type == "pullRequest")?
+                    .FirstOrDefault(o => o.PullRequest != null)?
                     .PullRequest;
                     
                 return new Outcome

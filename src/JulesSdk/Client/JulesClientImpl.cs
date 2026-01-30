@@ -189,7 +189,7 @@ internal class JulesClientImpl : IJulesClient, IDisposable
             {
                 // Fetch activities for each session
                 var sessionClient = Session(session.Id);
-                await foreach (var activity in sessionClient.HistoryAsync(cancellationToken))
+                await foreach (var activity in sessionClient.HistoryAsync(null, cancellationToken))
                 {
                     await Storage.UpsertActivityAsync(session.Id, activity, cancellationToken);
                     activitiesIngested++;

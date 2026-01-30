@@ -136,6 +136,33 @@ public class StreamOptions
     /// Filter to exclude activities by originator.
     /// </summary>
     public Origin? ExcludeOriginator { get; init; }
+    
+    /// <summary>
+    /// Only return activities created at or after this time.
+    /// Uses the API's createTime filter for efficient server-side filtering.
+    /// </summary>
+    public DateTime? Since { get; init; }
+    
+    /// <summary>
+    /// Only return activities created at or after this RFC 3339 timestamp.
+    /// Takes precedence over <see cref="Since"/> if both are set.
+    /// Example: "2026-01-17T00:03:53.137240Z"
+    /// </summary>
+    public string? SinceTimestamp { get; init; }
+    
+    /// <summary>
+    /// Gets the timestamp string for the API query.
+    /// </summary>
+    internal string? GetCreateTimeFilter()
+    {
+        if (!string.IsNullOrEmpty(SinceTimestamp))
+            return SinceTimestamp;
+        
+        if (Since.HasValue)
+            return Since.Value.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.ffffffZ");
+        
+        return null;
+    }
 }
 
 /// <summary>
@@ -156,7 +183,9 @@ public interface ISessionClient
     /// <summary>
     /// Yields all known past activities from local storage.
     /// </summary>
-    IAsyncEnumerable<Activity> HistoryAsync(CancellationToken cancellationToken = default);
+    /// <param name="options">Optional filtering options including createTime filter.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    IAsyncEnumerable<Activity> HistoryAsync(StreamOptions? options = null, CancellationToken cancellationToken = default);
     
     /// <summary>
     /// Yields only future activities as they arrive from the network.
