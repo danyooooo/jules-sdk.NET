@@ -4,12 +4,6 @@ Unofficial .NET SDK for interacting with Google Jules (AI Agent).
 
 > **Note:** This is not an officially supported Google product.
 
-## Installation
-
-```bash
-dotnet add package JulesSdk
-```
-
 ## Quick Start
 
 ```csharp
