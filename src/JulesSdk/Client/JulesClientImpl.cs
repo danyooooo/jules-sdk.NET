@@ -211,7 +211,6 @@ internal class JulesClientImpl : IJulesClient, IDisposable
             ApiKey = options.ApiKey ?? _options.ApiKey,
             PollingIntervalMs = options.PollingIntervalMs > 0 ? options.PollingIntervalMs : _options.PollingIntervalMs,
             RequestTimeoutMs = options.RequestTimeoutMs > 0 ? options.RequestTimeoutMs : _options.RequestTimeoutMs,
-            Proxy = options.Proxy ?? _options.Proxy,
             RateLimitRetry = options.RateLimitRetry ?? _options.RateLimitRetry,
             CacheDir = options.CacheDir ?? _options.CacheDir
         };

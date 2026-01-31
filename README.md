@@ -1,14 +1,6 @@
 # Jules SDK for .NET
 
-Unofficial .NET SDK for interacting with Google Jules (AI Agent).
-
 > **Note:** This is not an officially supported Google product.
-
-## Installation
-
-```bash
-dotnet add package JulesSdk
-```
 
 ## Quick Start
 
@@ -50,6 +42,10 @@ if (outcome.PullRequest != null)
 {
     Console.WriteLine($"PR: {outcome.PullRequest.Url}");
 }
+
+// Or get a full snapshot with analytics
+var snapshot = await session.SnapshotAsync();
+Console.WriteLine(snapshot.ToMarkdown());
 ```
 
 ## Interactive Sessions
@@ -90,6 +86,30 @@ var result = await session.ResultAsync();
 var files = result.GeneratedFiles();
 var script = files.Get("fibonacci.py");
 Console.WriteLine(script?.Content);
+```
+
+## Session Snapshots
+
+Get a point-in-time view of a session with analytics:
+
+```csharp
+var session = client.Session("sessions/123");
+var snapshot = await session.SnapshotAsync();
+
+// Access computed analytics
+Console.WriteLine($"Duration: {snapshot.Duration}");
+Console.WriteLine($"Activities: {snapshot.Activities.Count}");
+Console.WriteLine($"Plan regenerations: {snapshot.Insights.PlanRegenerations}");
+Console.WriteLine($"Failed commands: {snapshot.Insights.FailedCommands.Count}");
+
+// Export as markdown
+Console.WriteLine(snapshot.ToMarkdown());
+
+// Export as JSON with field masking
+var json = snapshot.ToJson(new SnapshotSerializeOptions
+{
+    Exclude = ["activities"]  // Skip large data
+});
 ```
 
 ## Batch Processing
@@ -207,7 +227,3 @@ await foreach (var activity in session.StreamAsync())
 
 - .NET 8.0, 9.0, or 10.0
 - Valid Jules API key
-
-## License
-
-Apache-2.0

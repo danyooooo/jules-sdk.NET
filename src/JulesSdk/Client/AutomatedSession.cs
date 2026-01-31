@@ -79,7 +79,7 @@ internal class AutomatedSession : IAutomatedSession
         }
     }
     
-    public async Task<Outcome> ResultAsync(CancellationToken cancellationToken = default)
+    public async Task<SessionOutcome> ResultAsync(CancellationToken cancellationToken = default)
     {
         while (!cancellationToken.IsCancellationRequested)
         {
@@ -93,7 +93,7 @@ internal class AutomatedSession : IAutomatedSession
                     .FirstOrDefault(o => o.PullRequest != null)?
                     .PullRequest;
                     
-                return new Outcome
+                return new SessionOutcome
                 {
                     SessionId = session.Id,
                     Title = session.Title ?? "",

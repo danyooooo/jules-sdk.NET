@@ -8,12 +8,12 @@
     
     <!-- Package Info -->
     <PackageId>JulesSdk</PackageId>
-    <Version>0.1.0</Version>
+    <Version>1.2.0</Version>
     <Description>Unofficial .NET SDK for interacting with Google Jules (AI Agent)</Description>
     <PackageTags>jules;ai;agent;sdk;google;developer-tools</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
-    <RepositoryUrl>https://github.com/user/jules-sdk.NET</RepositoryUrl>
+    <RepositoryUrl>https://github.com/danyooooo/jules-sdk.NET</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     
     <!-- Build Settings -->

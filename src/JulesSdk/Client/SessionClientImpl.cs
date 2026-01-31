@@ -166,13 +166,10 @@ internal class SessionClientImpl : ISessionClient
     
     public async Task ApproveAsync(CancellationToken cancellationToken = default)
     {
-        var info = await InfoAsync(cancellationToken);
-        if (info.State != SessionState.AwaitingPlanApproval)
-        {
-            throw new InvalidStateException(
-                $"Cannot approve plan because the session is not awaiting approval. Current state: {info.State}");
-        }
-        
+        // Don't pre-check state - just try the API call.
+        // The API will return an error if the session is not in a valid state.
+        // This handles "Inactive" sessions where API returns COMPLETED but
+        // the session can still be resumed by approving the plan.
         await _apiClient.RequestAsync<object>(
             $"sessions/{Id}:approvePlan",
             new ApiRequestOptions { Method = HttpMethod.Post, Body = new { } },
@@ -214,7 +211,7 @@ internal class SessionClientImpl : ISessionClient
         throw new JulesException("Session ended before the agent replied.");
     }
     
-    public async Task<Outcome> ResultAsync(CancellationToken cancellationToken = default)
+    public async Task<SessionOutcome> ResultAsync(CancellationToken cancellationToken = default)
     {
         var session = await PollUntilCompletionAsync(cancellationToken);
         return MapToOutcome(session);
@@ -253,6 +250,31 @@ internal class SessionClientImpl : ISessionClient
             cancellationToken: cancellationToken);
     }
     
+    public async Task<SessionSnapshot> SnapshotAsync(Options.SnapshotOptions? options = null, CancellationToken cancellationToken = default)
+    {
+        options ??= new Options.SnapshotOptions();
+        
+        // Fetch session info and activities in parallel
+        var sessionTask = InfoAsync(cancellationToken);
+        var activitiesTask = options.IncludeActivities 
+            ? CollectActivitiesAsync(cancellationToken)
+            : Task.FromResult<IReadOnlyList<Activity>>([]);
+        
+        await Task.WhenAll(sessionTask, activitiesTask);
+        
+        return new SessionSnapshot(sessionTask.Result, activitiesTask.Result);
+    }
+    
+    private async Task<IReadOnlyList<Activity>> CollectActivitiesAsync(CancellationToken cancellationToken)
+    {
+        var activities = new List<Activity>();
+        await foreach (var activity in HistoryAsync(null, cancellationToken))
+        {
+            activities.Add(activity);
+        }
+        return activities;
+    }
+    
     private async Task<SessionResource> PollUntilCompletionAsync(CancellationToken cancellationToken)
     {
         while (!cancellationToken.IsCancellationRequested)
@@ -268,13 +290,13 @@ internal class SessionClientImpl : ISessionClient
         throw new OperationCanceledException();
     }
     
-    private static Outcome MapToOutcome(SessionResource session)
+    private static SessionOutcome MapToOutcome(SessionResource session)
     {
         var pullRequest = session.Outputs?
             .FirstOrDefault(o => o.PullRequest != null)?
             .PullRequest;
             
-        return new Outcome
+        return new SessionOutcome
         {
             SessionId = session.Id,
             Title = session.Title ?? "",

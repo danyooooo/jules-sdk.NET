@@ -124,7 +124,7 @@ public interface IAutomatedSession
     /// <summary>
     /// Waits for the session to complete and returns the final outcome.
     /// </summary>
-    Task<Outcome> ResultAsync(CancellationToken cancellationToken = default);
+    Task<SessionOutcome> ResultAsync(CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -210,7 +210,7 @@ public interface ISessionClient
     /// <summary>
     /// Waits for the session to complete and returns the result.
     /// </summary>
-    Task<Outcome> ResultAsync(CancellationToken cancellationToken = default);
+    Task<SessionOutcome> ResultAsync(CancellationToken cancellationToken = default);
     
     /// <summary>
     /// Waits until the session reaches a specific state.
@@ -229,6 +229,14 @@ public interface ISessionClient
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The activity resource.</returns>
     Task<Activity> GetActivityAsync(string activityId, CancellationToken cancellationToken = default);
+    
+    /// <summary>
+    /// Creates a point-in-time snapshot of the session with all activities loaded and derived analytics computed.
+    /// </summary>
+    /// <param name="options">Optional snapshot options.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A SessionSnapshot with analytics, timeline, and insights.</returns>
+    Task<SessionSnapshot> SnapshotAsync(SnapshotOptions? options = null, CancellationToken cancellationToken = default);
 }
 
 /// <summary>

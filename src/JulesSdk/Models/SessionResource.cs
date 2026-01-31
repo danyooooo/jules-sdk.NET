@@ -90,16 +90,10 @@ public class SessionResource
     public IReadOnlyList<SessionOutput>? Outputs { get; init; }
     
     /// <summary>
-    /// The final outcome of the session, if in a terminal state.
+    /// Activities associated with the session.
+    /// Only populated when fetched with activities.
     /// </summary>
-    [JsonPropertyName("outcome")]
-    public SessionOutcome? Outcome { get; init; }
+    [JsonIgnore]
+    public IReadOnlyList<Activity>? Activities { get; set; }
 }
 
-/// <summary>
-/// The final outcome of the session.
-/// </summary>
-public record SessionOutcome(
-    [property: JsonPropertyName("status")] string Status,
-    [property: JsonPropertyName("summary")] string Summary
-);

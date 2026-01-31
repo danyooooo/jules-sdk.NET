@@ -36,10 +36,5 @@ public class SessionConfig
     /// Defaults to true for Run().
     /// </summary>
     public bool? AutoPr { get; init; }
-    
-    /// <summary>
-    /// The ID of the user who owns this session.
-    /// Primarily used by the Proxy/Authorization layer.
-    /// </summary>
-    public string? OwnerId { get; init; }
 }
+

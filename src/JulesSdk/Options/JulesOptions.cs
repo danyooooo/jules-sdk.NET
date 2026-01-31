@@ -25,23 +25,6 @@ public class RateLimitRetryConfig
 }
 
 /// <summary>
-/// Proxy configuration for browser/client environments.
-/// </summary>
-public class ProxyConfig
-{
-    /// <summary>
-    /// The full URL to your proxy endpoint.
-    /// </summary>
-    public required string Url { get; init; }
-    
-    /// <summary>
-    /// Async callback to retrieve the User Identity Token (e.g., Firebase ID Token).
-    /// Or a static string for "Shared Secret" mode.
-    /// </summary>
-    public Func<Task<string>>? AuthProvider { get; init; }
-}
-
-/// <summary>
 /// Configuration options for the Jules SDK client.
 /// </summary>
 public class JulesOptions
@@ -51,11 +34,6 @@ public class JulesOptions
     /// If not provided, the SDK will attempt to read it from the JULES_API_KEY environment variable.
     /// </summary>
     public string? ApiKey { get; set; }
-    
-    /// <summary>
-    /// Proxy configuration for browser/client environments.
-    /// </summary>
-    public ProxyConfig? Proxy { get; set; }
     
     /// <summary>
     /// The interval in milliseconds to poll for session and activity updates.
@@ -78,3 +56,4 @@ public class JulesOptions
     /// </summary>
     public string? CacheDir { get; set; }
 }
+

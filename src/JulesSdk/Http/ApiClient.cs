@@ -31,8 +31,6 @@ internal class ApiClient
     private readonly HttpClient _httpClient;
     private readonly string? _apiKey;
     private readonly RateLimitRetryConfig _rateLimitConfig;
-    private readonly ProxyConfig? _proxy;
-    private string? _capabilityToken;
     
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -46,7 +44,6 @@ internal class ApiClient
         _httpClient = httpClient;
         _apiKey = options.ApiKey ?? Environment.GetEnvironmentVariable("JULES_API_KEY");
         _rateLimitConfig = options.RateLimitRetry;
-        _proxy = options.Proxy;
         
         _httpClient.Timeout = TimeSpan.FromMilliseconds(options.RequestTimeoutMs);
     }
@@ -62,7 +59,7 @@ internal class ApiClient
         using var request = new HttpRequestMessage(options.Method, url);
         
         // Add authentication
-        await AddAuthenticationAsync(request, cancellationToken);
+        AddAuthentication(request);
         
         // Add custom headers
         if (options.Headers != null)
@@ -82,43 +79,16 @@ internal class ApiClient
         return await ExecuteWithRetryAsync<T>(request, url, cancellationToken);
     }
 
-    private async Task AddAuthenticationAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    private void AddAuthentication(HttpRequestMessage request)
     {
         if (!string.IsNullOrEmpty(_apiKey))
         {
             request.Headers.Add("X-Goog-Api-Key", _apiKey);
         }
-        else if (_proxy != null)
-        {
-            var token = await EnsureTokenAsync(cancellationToken);
-            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-        }
         else
         {
             throw new MissingApiKeyException();
         }
-    }
-
-    private async Task<string> EnsureTokenAsync(CancellationToken cancellationToken)
-    {
-        if (!string.IsNullOrEmpty(_capabilityToken))
-            return _capabilityToken;
-            
-        if (_proxy == null)
-            throw new JulesException("Missing proxy configuration");
-            
-        var authToken = _proxy.AuthProvider != null 
-            ? await _proxy.AuthProvider() 
-            : "";
-            
-        var response = await _httpClient.PostAsJsonAsync(_proxy.Url, new { authToken }, cancellationToken);
-        var data = await response.Content.ReadFromJsonAsync<HandshakeResponse>(cancellationToken);
-        
-        if (data?.Success != true)
-            throw new JulesException(data?.Error ?? "Handshake failed");
-            
-        _capabilityToken = data.Token;
-        return _capabilityToken!;
     }
 
     private async Task<T> ExecuteWithRetryAsync<T>(
@@ -214,6 +184,5 @@ internal class ApiClient
         
         return clone;
     }
-    
-    private record HandshakeResponse(bool Success, string? Token, string? Error);
 }
+

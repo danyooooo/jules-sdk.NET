@@ -63,7 +63,8 @@ Console.WriteLine($"Completed: {result.Title}");
 - [Models](#models)
   - [SessionConfig](#sessionconfig)
   - [SessionResource](#sessionresource)
-  - [Outcome](#outcome)
+  - [SessionOutcome](#sessionoutcome)
+  - [SessionSnapshot](#sessionsnapshot)
   - [Activity Types](#activity-types)
   - [Artifact Types](#artifact-types)
   - [Other Models](#other-models)
@@ -189,6 +190,9 @@ public interface ISessionClient
     
     // Get a specific activity by ID
     Task<Activity> GetActivityAsync(string activityId, CancellationToken ct = default);
+    
+    // Get point-in-time snapshot with analytics
+    Task<SessionSnapshot> SnapshotAsync(SnapshotOptions? options = null, CancellationToken ct = default);
 }
 ```
 
@@ -239,7 +243,7 @@ public interface IAutomatedSession
     IAsyncEnumerable<Activity> StreamAsync(CancellationToken ct = default);
     
     // Wait for completion and get result
-    Task<Outcome> ResultAsync(CancellationToken ct = default);
+    Task<SessionOutcome> ResultAsync(CancellationToken ct = default);
 }
 ```
 
@@ -276,7 +280,6 @@ public class JulesOptions
     int PollingIntervalMs { get; set; }       // Default: 5000
     int RequestTimeoutMs { get; set; }        // Default: 30000
     string? CacheDir { get; set; }            // File-based cache directory (optional)
-    ProxyConfig? Proxy { get; set; }          // Proxy configuration (optional)
     RateLimitRetryConfig RateLimitRetry { get; set; }
 }
 ```
@@ -401,12 +404,12 @@ public enum SessionState
 
 ---
 
-### Outcome
+### SessionOutcome
 
 Final result of a completed session.
 
 ```csharp
-public class Outcome
+public class SessionOutcome
 {
     string? SessionId { get; }
     string? Title { get; }
@@ -417,7 +420,95 @@ public class Outcome
     
     // Get generated files from changeset artifacts (requires Activities)
     GeneratedFiles GeneratedFiles();
+    
+    // Get first changeset artifact
+    ChangeSetData? ChangeSet();
 }
+```
+
+> **Note:** The class `Outcome` is deprecated. Use `SessionOutcome` instead.
+
+---
+
+### SessionSnapshot
+
+A point-in-time, immutable view of a session with all activities loaded and derived analytics computed.
+
+```csharp
+public class SessionSnapshot
+{
+    string Id { get; }
+    SessionState State { get; }
+    string? Url { get; }
+    DateTime CreatedAt { get; }
+    DateTime UpdatedAt { get; }
+    TimeSpan Duration { get; }
+    string? Prompt { get; }
+    string? Title { get; }
+    PullRequest? PullRequest { get; }
+    
+    // Activities and analytics
+    IReadOnlyList<Activity> Activities { get; }
+    IReadOnlyDictionary<string, int> ActivityCounts { get; }
+    IReadOnlyList<TimelineEntry> Timeline { get; }
+    SessionInsights Insights { get; }
+    GeneratedFiles GeneratedFiles { get; }
+    
+    // Get first changeset artifact
+    ChangeSetData? ChangeSet();
+    
+    // Serialize with field masking
+    string ToJson(SnapshotSerializeOptions? options = null);
+    
+    // Generate markdown summary
+    string ToMarkdown();
+}
+```
+
+#### Supporting Types
+
+```csharp
+public record TimelineEntry(string Time, string Type, string Summary);
+
+public class SessionInsights
+{
+    int CompletionAttempts { get; }
+    int PlanRegenerations { get; }
+    int UserInterventions { get; }
+    IReadOnlyList<Activity> FailedCommands { get; }
+}
+
+public class SnapshotOptions
+{
+    bool IncludeActivities { get; init; } = true;  // Include activities in snapshot
+}
+
+public class SnapshotSerializeOptions
+{
+    IReadOnlyList<string>? Include { get; init; }  // Fields to include (takes precedence)
+    IReadOnlyList<string>? Exclude { get; init; }  // Fields to exclude
+}
+```
+
+**Usage:**
+
+```csharp
+var snapshot = await session.SnapshotAsync();
+
+// Access analytics
+Console.WriteLine($"Duration: {snapshot.Duration}");
+Console.WriteLine($"Plan regens: {snapshot.Insights.PlanRegenerations}");
+
+// Timeline
+foreach (var entry in snapshot.Timeline.Take(10))
+{
+    Console.WriteLine($"[{entry.Type}] {entry.Summary}");
+}
+
+// Export
+var json = snapshot.ToJson(new SnapshotSerializeOptions { Exclude = ["activities"] });
+var markdown = snapshot.ToMarkdown();
+```
 ```
 
 ### PullRequest
@@ -762,7 +853,8 @@ public class MyService(IJulesClient client)
 | `AllAsync()` | `IReadOnlyList<IAutomatedSession>` |
 | `SyncAsync()` | `SyncStats` |
 | `StreamAsync()` | `IAsyncEnumerable<Activity>` |
-| `ResultAsync()` | `Outcome` |
+| `ResultAsync()` | `SessionOutcome` |
+| `SnapshotAsync()` | `SessionSnapshot` |
 | `InfoAsync()` | `SessionResource` |
 | `AskAsync()` | `AgentMessagedActivity` |
 | `Sources.ListAsync()` | `IAsyncEnumerable<Source>` |
