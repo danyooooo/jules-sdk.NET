@@ -36,5 +36,12 @@ public class SessionConfig
     /// Defaults to true for Run().
     /// </summary>
     public bool? AutoPr { get; init; }
+    
+    /// <summary>
+    /// A unique key to identify this session for later resumption.
+    /// If provided, the session ID will be stored locally under this key.
+    /// Use client.ResumeAsync(key) to recover the session handle.
+    /// </summary>
+    public string? ResumeKey { get; init; }
 }
 

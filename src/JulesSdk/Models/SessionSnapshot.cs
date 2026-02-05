@@ -94,6 +94,11 @@ public class SessionSnapshot
     /// <summary>
     /// Creates a new SessionSnapshot from a SessionResource and its activities.
     /// </summary>
+    private readonly ChangeSetData? _changeSet;
+
+    /// <summary>
+    /// Creates a new SessionSnapshot from a SessionResource and its activities.
+    /// </summary>
     public SessionSnapshot(SessionResource session, IReadOnlyList<Activity>? activities = null)
     {
         ArgumentNullException.ThrowIfNull(session);
@@ -113,10 +118,21 @@ public class SessionSnapshot
             ? updated 
             : DateTime.MinValue;
         
-        // Extract PR from outputs if available
-        PullRequest = session.Outputs?
-            .FirstOrDefault(o => o.PullRequest != null)?
-            .PullRequest;
+        // Prefer Outcome if available (matches TypeScript snapshot.ts logic)
+        if (session.Outcome != null)
+        {
+            PullRequest = session.Outcome.PullRequest;
+            _changeSet = session.Outcome.ChangeSet;
+        }
+        else
+        {
+            // Fallback: extract PR from outputs
+            PullRequest = session.Outputs?
+                .FirstOrDefault(o => o.PullRequest != null)?
+                .PullRequest;
+            
+            _changeSet = ComputeChangeSetFallback();
+        }
         
         // Compute derived views
         ActivityCounts = ComputeActivityCounts();
@@ -126,9 +142,11 @@ public class SessionSnapshot
     }
     
     /// <summary>
-    /// Returns the first changeset from activities, if any.
+    /// Returns the changeset from the session outcome or activities.
     /// </summary>
-    public ChangeSetData? ChangeSet()
+    public ChangeSetData? ChangeSet() => _changeSet;
+    
+    private ChangeSetData? ComputeChangeSetFallback()
     {
         foreach (var activity in Activities)
         {
@@ -140,7 +158,6 @@ public class SessionSnapshot
                     return artifact.ChangeSet;
             }
         }
-        
         return null;
     }
     
@@ -353,17 +370,28 @@ public class SessionSnapshot
     {
         var files = new List<GeneratedFile>();
         
-        foreach (var activity in Activities)
+        // If we have a definitive changeset (from Outcome or first artifact), use it.
+        // This matches the TypeScript behavior of preferring the Outcome's changeset/files.
+        if (_changeSet?.GitPatch?.UnidiffPatch != null)
         {
-            if (activity.Artifacts == null) continue;
-            
-            foreach (var artifact in activity.Artifacts)
+            var parsed = Utilities.UnidiffParser.ParseWithContent(_changeSet.GitPatch.UnidiffPatch);
+            files.AddRange(parsed);
+        }
+        else
+        {
+            // Fallback: collect from all activities (legacy behavior)
+            foreach (var activity in Activities)
             {
-                if (artifact.ChangeSet?.GitPatch?.UnidiffPatch != null)
+                if (activity.Artifacts == null) continue;
+                
+                foreach (var artifact in activity.Artifacts)
                 {
-                    var parsed = Utilities.UnidiffParser.ParseWithContent(
-                        artifact.ChangeSet.GitPatch.UnidiffPatch);
-                    files.AddRange(parsed);
+                    if (artifact.ChangeSet?.GitPatch?.UnidiffPatch != null)
+                    {
+                        var parsed = Utilities.UnidiffParser.ParseWithContent(
+                            artifact.ChangeSet.GitPatch.UnidiffPatch);
+                        files.AddRange(parsed);
+                    }
                 }
             }
         }

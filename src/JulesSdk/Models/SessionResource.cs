@@ -90,10 +90,34 @@ public class SessionResource
     public IReadOnlyList<SessionOutput>? Outputs { get; init; }
     
     /// <summary>
+    /// The outcome of the session, if completed.
+    /// </summary>
+    [JsonPropertyName("outcome")]
+    public SessionOutcomeData? Outcome { get; set; }
+
+    /// <summary>
     /// Activities associated with the session.
     /// Only populated when fetched with activities.
     /// </summary>
     [JsonIgnore]
     public IReadOnlyList<Activity>? Activities { get; set; }
+}
+
+/// <summary>
+/// The outcome of a session (DTO).
+/// </summary>
+public class SessionOutcomeData
+{
+    /// <summary>
+    /// The pull request created by the session.
+    /// </summary>
+    [JsonPropertyName("pullRequest")]
+    public PullRequest? PullRequest { get; init; }
+    
+    /// <summary>
+    /// The changeset produced by the session.
+    /// </summary>
+    [JsonPropertyName("changeSet")]
+    public ChangeSetData? ChangeSet { get; init; }
 }
 

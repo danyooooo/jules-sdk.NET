@@ -8,6 +8,9 @@ using JulesSdk.Http;
 using JulesSdk.Models;
 using JulesSdk.Options;
 
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+
 namespace JulesSdk.Client;
 
 using JulesSdk.Storage;
@@ -21,22 +24,27 @@ internal class JulesClientImpl : IJulesClient, IDisposable
     private readonly JulesOptions _options;
     private readonly HttpClient _httpClient;
     private readonly bool _ownsHttpClient;
+    private readonly ILogger<JulesClientImpl> _logger;
     private bool _disposed;
     
     public ISourceManager Sources { get; }
     public ISessionStorage Storage { get; }
     
-    public JulesClientImpl(HttpClient httpClient, JulesOptions options, bool ownsHttpClient = false)
+    public JulesClientImpl(HttpClient httpClient, JulesOptions options, ILoggerFactory? loggerFactory = null, bool ownsHttpClient = false)
     {
         _httpClient = httpClient;
         _options = options;
         _ownsHttpClient = ownsHttpClient;
+        _logger = loggerFactory?.CreateLogger<JulesClientImpl>() ?? NullLogger<JulesClientImpl>.Instance;
         _apiClient = new ApiClient(httpClient, options);
         Sources = new SourceManager(_apiClient);
         
         if (!string.IsNullOrEmpty(options.CacheDir))
         {
-            Storage = new FileStorage(options.CacheDir);
+            // Ensure directory exists
+            Directory.CreateDirectory(options.CacheDir);
+            var dbPath = Path.Combine(options.CacheDir, "jules.db");
+            Storage = new SqliteStorage(dbPath);
         }
         else
         {
@@ -54,8 +62,22 @@ internal class JulesClientImpl : IJulesClient, IDisposable
             "sessions",
             new ApiRequestOptions { Method = HttpMethod.Post, Body = body },
             cancellationToken);
+
+        if (!string.IsNullOrEmpty(config.ResumeKey))
+        {
+            await Storage.SetActiveSessionAsync(config.ResumeKey, session.Id, cancellationToken);
+        }
             
         return new AutomatedSession(session.Id, _apiClient, _options.PollingIntervalMs);
+    }
+    
+    public async Task<IAutomatedSession?> ResumeAsync(string resumeKey, CancellationToken cancellationToken = default)
+    {
+        var sessionId = await Storage.GetActiveSessionAsync(resumeKey, cancellationToken);
+        if (string.IsNullOrEmpty(sessionId))
+            return null;
+            
+        return new AutomatedSession(sessionId, _apiClient, _options.PollingIntervalMs);
     }
     
     public async Task<ISessionClient> SessionAsync(SessionConfig config, CancellationToken cancellationToken = default)
@@ -161,9 +183,9 @@ internal class JulesClientImpl : IJulesClient, IDisposable
                 {
                     results.Add(await task);
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // Continue on error
+                    _logger.LogWarning(ex, "Error in batch session execution, ignoring because StopOnError=false");
                 }
             }
         }

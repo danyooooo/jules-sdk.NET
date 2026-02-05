@@ -74,4 +74,24 @@ public class MemoryStorage : ISessionStorage
         }
         return Task.CompletedTask;
     }
+    
+    private readonly ConcurrentDictionary<string, string> _kvStore = new();
+    
+    public Task SetActiveSessionAsync(string key, string sessionId, CancellationToken cancellationToken = default)
+    {
+        _kvStore[key] = sessionId;
+        return Task.CompletedTask;
+    }
+
+    public Task<string?> GetActiveSessionAsync(string key, CancellationToken cancellationToken = default)
+    {
+        _kvStore.TryGetValue(key, out var val);
+        return Task.FromResult(val);
+    }
+
+    public Task ClearActiveSessionAsync(string key, CancellationToken cancellationToken = default)
+    {
+        _kvStore.TryRemove(key, out _);
+        return Task.CompletedTask;
+    }
 }

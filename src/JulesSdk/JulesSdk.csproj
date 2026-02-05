@@ -8,7 +8,7 @@
     
     <!-- Package Info -->
     <PackageId>JulesSdk</PackageId>
-    <Version>1.2.0</Version>
+    <Version>1.3.0</Version>
     <Description>Unofficial .NET SDK for interacting with Google Jules (AI Agent)</Description>
     <PackageTags>jules;ai;agent;sdk;google;developer-tools</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
@@ -30,6 +30,9 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Options" Version="8.0.0" />
+    <PackageReference Include="StreamJsonRpc" Version="2.24.84" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
   </ItemGroup>
 
 </Project>

@@ -236,9 +236,34 @@ internal class SessionClientImpl : ISessionClient
     
     public async Task<SessionResource> InfoAsync(CancellationToken cancellationToken = default)
     {
-        return await _apiClient.RequestAsync<SessionResource>(
+        var resource = await _apiClient.RequestAsync<SessionResource>(
             $"sessions/{Id}",
             cancellationToken: cancellationToken);
+            
+        // Map outcome from outputs if not already present
+        if (resource.Outcome == null && resource.Outputs != null)
+        {
+            resource.Outcome = MapToOutcomeData(resource);
+        }
+        
+        return resource;
+    }
+    
+    private static SessionOutcomeData MapToOutcomeData(SessionResource session)
+    {
+        var pullRequest = session.Outputs?
+            .FirstOrDefault(o => o.PullRequest != null)?
+            .PullRequest;
+            
+        var changeSet = session.Outputs?
+            .FirstOrDefault(o => o.ChangeSet != null)?
+            .ChangeSet;
+            
+        return new SessionOutcomeData
+        {
+            PullRequest = pullRequest,
+            ChangeSet = changeSet
+        };
     }
     
     public async Task<Activity> GetActivityAsync(string activityId, CancellationToken cancellationToken = default)
@@ -292,9 +317,13 @@ internal class SessionClientImpl : ISessionClient
     
     private static SessionOutcome MapToOutcome(SessionResource session)
     {
-        var pullRequest = session.Outputs?
+        var pullRequest = session.Outcome?.PullRequest ?? session.Outputs?
             .FirstOrDefault(o => o.PullRequest != null)?
             .PullRequest;
+            
+        var changeSet = session.Outcome?.ChangeSet ?? session.Outputs?
+            .FirstOrDefault(o => o.ChangeSet != null)?
+            .ChangeSet;
             
         return new SessionOutcome
         {
@@ -302,6 +331,7 @@ internal class SessionClientImpl : ISessionClient
             Title = session.Title ?? "",
             State = session.State,
             PullRequest = pullRequest,
+            ChangeSetData = changeSet,
             Outputs = session.Outputs ?? []
         };
     }

@@ -3,6 +3,7 @@
 
 using JulesSdk.Client;
 using JulesSdk.Options;
+using Microsoft.Extensions.Logging;
 
 namespace JulesSdk;
 
@@ -23,14 +24,15 @@ public static class Jules
     public static IJulesClient Client => _defaultClient.Value;
     
     /// <summary>
-    /// Creates a new client instance with custom configuration.
+    /// Creates a new client instance with custom configuration and optional logging.
     /// </summary>
     /// <param name="options">The configuration options.</param>
+    /// <param name="loggerFactory">Optional logger factory.</param>
     /// <returns>A new JulesClient instance.</returns>
-    public static IJulesClient Connect(JulesOptions options)
+    public static IJulesClient Connect(JulesOptions options, ILoggerFactory? loggerFactory = null)
     {
         var httpClient = new HttpClient();
-        return new JulesClientImpl(httpClient, options);
+        return new JulesClientImpl(httpClient, options, loggerFactory);
     }
     
     /// <summary>

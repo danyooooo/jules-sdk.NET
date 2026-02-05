@@ -275,6 +275,12 @@ public interface IJulesClient : IDisposable
     Task<IAutomatedSession> RunAsync(SessionConfig config, CancellationToken cancellationToken = default);
     
     /// <summary>
+    /// Resumes an automated session by its resume key.
+    /// Returns null if no active session is found for the key.
+    /// </summary>
+    Task<IAutomatedSession?> ResumeAsync(string resumeKey, CancellationToken cancellationToken = default);
+    
+    /// <summary>
     /// Creates a new interactive session.
     /// </summary>
     Task<ISessionClient> SessionAsync(SessionConfig config, CancellationToken cancellationToken = default);

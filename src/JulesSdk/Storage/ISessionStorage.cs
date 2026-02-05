@@ -20,4 +20,9 @@ public interface ISessionStorage
     IAsyncEnumerable<Activity> ListActivitiesAsync(string sessionId, CancellationToken cancellationToken = default);
     Task UpsertActivityAsync(string sessionId, Activity activity, CancellationToken cancellationToken = default);
     Task DeleteActivityAsync(string sessionId, string activityId, CancellationToken cancellationToken = default);
+
+    // KV operations for state persistence
+    Task SetActiveSessionAsync(string key, string sessionId, CancellationToken cancellationToken = default);
+    Task<string?> GetActiveSessionAsync(string key, CancellationToken cancellationToken = default);
+    Task ClearActiveSessionAsync(string key, CancellationToken cancellationToken = default);
 }

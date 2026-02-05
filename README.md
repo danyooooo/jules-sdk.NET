@@ -8,7 +8,7 @@
 using JulesSdk;
 using JulesSdk.Models;
 
-// Set JULES_API_KEY environment variable or pass it directly
+// Set JULES_API_KEY environment variable or use 'jules config set api-key <key>'
 var client = Jules.Client;
 
 // Create an automated session
@@ -16,7 +16,8 @@ var session = await client.RunAsync(new SessionConfig
 {
     Prompt = "Fix the login button bug",
     Source = new SourceInput("owner/repo", "main"),
-    AutoPr = true
+    AutoPr = true,
+    ResumeKey = "login-fix" // Optional: allows resuming this session later
 });
 
 // Stream activities as they happen
@@ -154,11 +155,11 @@ public class MyService(IJulesClient julesClient)
 Cache session data locally for offline access and faster lookups:
 
 ```csharp
-// File-based storage
+// SQLite-based storage
 var client = Jules.Connect(new JulesOptions
 {
     ApiKey = "your-api-key",
-    CacheDir = "./jules-cache"
+    CacheDir = "./jules-cache" // Creates jules.db in this directory
 });
 
 // Sync sessions to local cache
@@ -187,6 +188,21 @@ var client = Jules.Connect(new JulesOptions
     RequestTimeoutMs = 30000,
     CacheDir = "./cache"  // Optional: enables file-based caching
 });
+```
+
+## CLI Configuration
+
+Manage settings persistently using the `jules config` command:
+
+```bash
+# Set API key (stored in ~/.jules/config.json)
+jules config set api-key "your-api-key"
+
+# Set default cache directory
+jules config set cache-dir "./my-cache"
+
+# View settings
+jules config get api-key
 ```
 
 > **Note:** The API endpoint is hardcoded to `https://jules.googleapis.com/v1alpha`.
@@ -227,3 +243,7 @@ await foreach (var activity in session.StreamAsync())
 
 - .NET 8.0, 9.0, or 10.0
 - Valid Jules API key
+
+## License
+
+Apache-2.0

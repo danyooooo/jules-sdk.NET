@@ -86,8 +86,19 @@ public class SessionOutcome
     /// </code>
     /// </example>
     /// <returns>The first ChangeSetData from activities, or null if none exists.</returns>
+    /// <summary>
+    /// The changeset produced by the session, if any.
+    /// </summary>
+    public ChangeSetData? ChangeSetData { get; init; }
+
+    /// <summary>
+    /// Returns the first changeset artifact if one exists, providing access to 
+    /// the unified diff and parsed file changes.
+    /// </summary>
+    /// <returns>The first ChangeSetData from outcome or activities, or null if none exists.</returns>
     public ChangeSetData? ChangeSet()
     {
+        if (ChangeSetData != null) return ChangeSetData;
         if (Activities == null) return null;
         
         foreach (var activity in Activities)

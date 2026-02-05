@@ -137,4 +137,13 @@ public class FileStorage : ISessionStorage
 
     private static string Sanitize(string id) =>
         string.Join("_", id.Split(Path.GetInvalidFileNameChars()));
+        
+    public Task SetActiveSessionAsync(string key, string sessionId, CancellationToken cancellationToken = default) => 
+        throw new NotImplementedException("KV storage not supported in legacy FileStorage");
+        
+    public Task<string?> GetActiveSessionAsync(string key, CancellationToken cancellationToken = default) => 
+        throw new NotImplementedException("KV storage not supported in legacy FileStorage");
+        
+    public Task ClearActiveSessionAsync(string key, CancellationToken cancellationToken = default) => 
+        throw new NotImplementedException("KV storage not supported in legacy FileStorage");
 }

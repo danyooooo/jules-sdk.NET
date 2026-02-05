@@ -28,8 +28,13 @@ public class SessionOutput
     /// <summary>
     /// A pull request created by the session, if applicable.
     /// </summary>
-    [JsonPropertyName("pullRequest")]
     public PullRequest? PullRequest { get; init; }
+
+    /// <summary>
+    /// A changeset produced by the session, if applicable.
+    /// </summary>
+    [JsonPropertyName("changeSet")]
+    public ChangeSetData? ChangeSet { get; init; }
 }
 
 /// <summary>
