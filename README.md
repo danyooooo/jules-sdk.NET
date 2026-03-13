@@ -1,6 +1,10 @@
 # Jules SDK for .NET
 
-> **Note:** This is not an officially supported Google product.
+> [!WARNING]
+> This project is no longer actively maintained and has been discontinued. The repository will be archived, and no further updates, bug fixes, or support will be provided.
+
+> [!IMPORTANT]
+> This is not an officially supported Google product.
 
 ## Quick Start
 
